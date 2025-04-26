@@ -108,7 +108,7 @@ def video_processing_thread():
                 latest_emotions = process_frame(frame)
                 
                 # Sleep briefly to control processing rate
-                time.sleep(0.5)
+                time.sleep(5.0)
     
     except Exception as e:
         print(f"Error in video processing thread: {e}")

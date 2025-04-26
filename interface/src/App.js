@@ -1,8 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 
 function App() {
-  const videoRef = useRef(null);
   const [notes, setNotes] = useState('');
   const [emotions, setEmotions] = useState({
     neutral: 0,
@@ -16,64 +15,57 @@ function App() {
   });
   const [processingStatus, setProcessingStatus] = useState('stopped');
   const [error, setError] = useState(null);
-  const [simulationInterval, setSimulationInterval] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadedImage, setUploadedImage] = useState(null);
 
-  // Predefined function to stop emotion detection
-  const stopEmotionDetection = () => {
-    if (simulationInterval) {
-      clearInterval(simulationInterval);
-      setSimulationInterval(null);
+  // Handle file selection
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      setUploadedImage(URL.createObjectURL(file));
     }
-    setProcessingStatus('stopped');
   };
 
-  // Initialize webcam
-  useEffect(() => {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-        })
-        .catch(err => {
-          console.error("Error accessing the webcam: ", err);
-          setError("Failed to access webcam. Please ensure you have a webcam connected and have granted permission to use it.");
-        });
+  // Upload file for emotion analysis
+  const uploadFile = () => {
+    if (!selectedFile) {
+      setError("Please select a file first");
+      return;
     }
 
-    // Clean up on component unmount
-    return () => {
-      stopEmotionDetection();
-    };
-  }, [simulationInterval]); // Add simulationInterval as a dependency
+    const formData = new FormData();
+    formData.append('file', selectedFile);
 
-  // Simulate emotion detection (for demo purposes)
-  const simulateEmotionDetection = () => {
-    // Randomly select a dominant emotion
-    const emotionList = Object.keys(emotions);
-    const dominantEmotion = emotionList[Math.floor(Math.random() * emotionList.length)];
-    
-    // Generate random values for all emotions
-    const newEmotions = {};
-    emotionList.forEach(emotion => {
-      if (emotion === dominantEmotion) {
-        newEmotions[emotion] = Math.floor(Math.random() * 40) + 60; // 60-100 range for dominant
-      } else {
-        newEmotions[emotion] = Math.floor(Math.random() * 40); // 0-39 range for others
-      }
-    });
-    
-    setEmotions(newEmotions);
+    fetch('http://127.0.0.1:5000/api/upload', {
+      method: 'POST',
+      body: formData,
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          setEmotions(data.emotions);
+          setError(null);
+        } else {
+          setError(data.error || 'Error analyzing the image');
+        }
+      })
+      .catch(error => {
+        console.error('Error uploading file:', error);
+        setError('Failed to upload and analyze the image');
+      });
   };
 
-  const startEmotionDetection = () => {
-    if (processingStatus === 'running') return;
-    
-    // Start the simulation interval
-    const interval = setInterval(simulateEmotionDetection, 500);
-    setSimulationInterval(interval);
-    setProcessingStatus('running');
+  // Get emotions from backend
+  const getEmotions = () => {
+    fetch('http://127.0.0.1:5000/api/emotions')
+      .then(response => response.json())
+      .then(data => {
+        setEmotions(data);
+      })
+      .catch(error => {
+        console.error('Error fetching emotions:', error);
+      });
   };
 
   const handleEmotionChange = (emotion, value) => {
@@ -87,61 +79,45 @@ function App() {
     setNotes(e.target.value);
   };
 
-  const toggleProcessing = () => {
-    if (processingStatus === 'running') {
-      stopEmotionDetection();
-    } else {
-      startEmotionDetection();
-    }
-  };
-
   // Find the dominant emotion
   const dominantEmotion = Object.entries(emotions).reduce(
     (max, [emotion, value]) => (value > max.value ? { emotion, value } : max),
     { emotion: 'neutral', value: 0 }
   );
 
-  // Instructions for integrating Python backend
-  const pythonIntegrationInstructions = `
-  To integrate the Python backend:
-  
-  1. Install required packages in a virtual environment:
-     python -m venv venv
-     source venv/bin/activate  # On Windows: venv\\Scripts\\activate
-     pip install flask flask-cors opencv-python numpy
-  
-  2. Save your Python code to 'backend/app.py'
-  
-  3. Modify the React code to use API endpoints:
-     - Uncomment the API fetch code
-     - Comment out the simulation code
-  
-  4. Run the backend server:
-     python backend/app.py
-  `;
-
   return (
     <div className="App">
       <h1>Emotion Detection App</h1>
       {error && <div className="error-message">{error}</div>}
-      <div className="status-bar">
-        <span>Status: {processingStatus === 'running' ? 'Running' : 'Stopped'}</span>
-        <button onClick={toggleProcessing}>
-          {processingStatus === 'running' ? 'Stop Detection' : 'Start Detection'}
-        </button>
-      </div>
+      
       <div className="container">
-        <div className="video-container">
-          <h2>Video Feed</h2>
-          <video 
-            ref={videoRef} 
-            autoPlay 
-            playsInline 
-            muted
-          />
-          <div className="dominant-emotion">
-            Dominant Emotion: <strong>{dominantEmotion.emotion.charAt(0).toUpperCase() + dominantEmotion.emotion.slice(1)}</strong>
+        <div className="image-container">
+          <h2>Image Upload</h2>
+          <div className="upload-section">
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleFileChange}
+              id="file-upload"
+            />
+            <button 
+              onClick={uploadFile} 
+              disabled={!selectedFile}
+            >
+              Analyze Image
+            </button>
+            {uploadedImage && (
+              <div className="preview-container">
+                <h4>Preview</h4>
+                <img src={uploadedImage} alt="Preview" className="image-preview" />
+              </div>
+            )}
           </div>
+          {dominantEmotion.value > 0 && (
+            <div className="dominant-emotion">
+              Dominant Emotion: <strong>{dominantEmotion.emotion.charAt(0).toUpperCase() + dominantEmotion.emotion.slice(1)}</strong>
+            </div>
+          )}
         </div>
         <div className="emotions-container">
           <h2>Emotion Levels</h2>
@@ -157,7 +133,6 @@ function App() {
                 max="100"
                 value={emotions[emotion]}
                 onChange={(e) => handleEmotionChange(emotion, parseInt(e.target.value))}
-                disabled={processingStatus === 'running'}
               />
             </div>
           ))}
@@ -171,14 +146,6 @@ function App() {
           value={notes}
           onChange={handleNotesChange}
         />
-      </div>
-      
-      <div className="integration-info">
-        <h3>Python Backend Integration</h3>
-        <details>
-          <summary>Click to view integration instructions</summary>
-          <pre>{pythonIntegrationInstructions}</pre>
-        </details>
       </div>
     </div>
   );

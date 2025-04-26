@@ -1,0 +1,6 @@
+flask>=2.0.0
+flask-cors>=3.0.0
+numpy>=1.20.0
+opencv-python>=4.5.0
+# Uncomment the line below if libreface is a PyPI package
+# libreface==0.1.0

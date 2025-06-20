@@ -1,6 +1,6 @@
 # TeachAI
 
-TeachAI is an machine learning based tool aimed to help educators and teachers leverage facial empathy in optimizing student-level education by unlocking access to 
+TeachAI is an machine learning based tool aimed to help educators and teachers leverage facial empathy in optimizing student-level education by unlocking access to a deeper contextual understanding of a student's emotions. Utilizing libreface's deep learning algorithm, facial features are encoded to empathy features. 
 
 ## Features
 
